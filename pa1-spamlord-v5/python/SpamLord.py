@@ -29,12 +29,45 @@ though StringIO should support most everything.
 def process_file(name, f):
     # note that debug info should be printed to stderr
     # sys.stderr.write('[process_file]\tprocessing file: %s\n' % (path))
+    opening_punct = "[_\/\'\"\-,\*~`%({+-<\s]"
+    closing_punct = "[_\/\'\"\-+-,~`%\*)}>\s]"
+    username = "([A-z0-9_.]+)"
+    website_name = "([A-z0-9]+)"
+    domain = "([A-z]+)"
+    general_email_regex = username + "(" + opening_punct + "at" + closing_punct + "|" + \
+            opening_punct + "?(@|&#x40;|WHERE)" + closing_punct + "?)" + "((" + website_name + \
+            "(?:\.|" + opening_punct + "(dot|dt|DOT|DOM)" + closing_punct + "))+)" + domain
+    extra_emails_regex = "(d-l-w-h-@-s-t-a-n-f-o-r-d-.-e-d-u)|((\w+)\sat\s(cs|robotics)[;\s]stanford" + \
+            "[\s;]edu)|(([A-z0-9.]+) \(followed.*@(.*)stanford.edu)|(obfuscate\('(\w+).(\w+)','(\w+)'\))"
     res = []
+    website_multiple = "((\w+)(?:\.|.?(dot|dt|DOT|DOM).?))"
+
+    general_phone_regex = "(\(([0-9]{3})\)[-\s\.]?|([0-9]{3})[-\s\.])([0-9]{3})[-\s\.]([0-9]{4})"
+    print general_email_regex
     for line in f:
-        matches = re.findall(my_first_pat,line)
-        for m in matches:
-            email = '%s@%s.edu' % m
-            res.append((name,'e',email))
+        email_matches = re.findall(general_email_regex, line)
+        for m in email_matches:
+            website_names = [x[1] for x in re.findall(website_multiple, m[3])]
+            if m[0].islower() and m[0] != 'name' and m[0] != 'ldquo':
+                email = '{0}@{1}.{2}'.format(m[0], '.'.join(website_names), m[7])
+                print email, line
+                res.append((name,'e',email))
+
+        extra_matches = re.findall(extra_emails_regex, line)
+        for m in extra_matches:
+            if m[0]:
+                res.append((name, 'e', 'dlwh@stanford.edu'))
+            elif m[2]:
+                res.append((name, 'e', m[2] + '@' + m[3] + '.stanford.edu'))
+            elif m[5]:
+                res.append((name, 'e', m[5] + '@' + m[6] + 'stanford.edu'))
+            elif m[8]:
+                res.append((name, 'e', m[10] + '@' + m[8] + '.' + m[9]))
+
+        phone_matches = re.findall(general_phone_regex, line)
+        for m in phone_matches:
+            phone = '{0}-{1}-{2}'.format(m[1] if not m[2] else m[2], m[3], m[4])
+            res.append((name,'p',phone))
     return res
 
 """
